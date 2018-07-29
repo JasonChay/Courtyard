@@ -21,69 +21,123 @@ class King:
         self.color = c
         self.position = (x, y)
         self.name = name
+
     def __str__(self):
         if self.color is 'Black':
             return 'B'
         elif self.color is 'White':
             return 'W'
+
     def possible_moves(self):
         x = self.position[0]
         y = self.position[1]
         moves = [(x+1, y+1), (x-1, y+1), (x+1, y-1), (x-1, y-1)]
         kmoves = []
+        capture = []
         for arr in moves:
             if isinstance(board[x][y], King) and check_move(arr[0], arr[1]):
                 kmoves.append(arr)
-        return kmoves
+            direction = (arr[0] - x, arr[1] - y)
+            if isinstance(board[x][y], King) and check_move(arr[0] + direction[0], arr[1] + direction[1]):
+                if board[arr[0]][arr[1]] != ' ':
+                    if board[x][y].color == 'White' and board[arr[0]][arr[1]].color == 'Black':
+                        kmoves.append((arr[0] + direction[0], arr[1] + direction[1]))
+                        capture.append((arr[0] + direction[0], arr[1] + direction[1]))
+                    elif board[x][y].color == 'Black' and board[arr[0]][arr[1]].color == 'White':
+                        kmoves.append((arr[0] + direction[0], arr[1] + direction[1]))
+                        capture.append((arr[0] + direction[0], arr[1] + direction[1]))
+        if len(capture) > 1:
+            return (capture, capture)
+        else:
+            return (kmoves, capture)
 
 class Guard:
     def __init__(self, name, x = 0, y = 0, c = ''):
         self.color = c
         self.position = (x, y)
         self.name = name
+    """
     def __str__(self):
         if self.color is 'Black':
             return 'g'
         elif self.color is 'White':
             return 'G'
+    """
+
     def possible_moves(self):
         x = self.position[0]
         y = self.position[1]
         one_moves = [(x+1, y+1), (x-1, y+1), (x+1, y-1), (x-1, y-1)]
         two_moves = [(x+2, y+2), (x-2, y+2), (x+2, y-2), (x-2, y-2)]
         gmoves = []
+        capture = []
         for i in range(len(one_moves)):
-            if isinstance(board[x][y], Guard) and check_move(one_moves[0][0], one_moves[0][1]):
-                gmoves.append(arr)
-                if check_move(two_moves[0][0], one_moves[0][1]):
-                    gmoves.append(arr)
-        return gmoves
+            one_x = one_moves[i][0]
+            one_y = one_moves[i][1]
+            two_x = two_moves[i][0]
+            two_y = two_moves[i][1]
+            if isinstance(board[x][y], Guard) and check_move(one_x, one_y):
+                gmoves.append(one_moves[i])
+                if check_move(two_x, two_y):
+                    gmoves.append(two_moves[i])
+            direction = (one_x - x, one_y - y)
+            print(direction)
+            if isinstance(board[x][y], Guard) and check_move(one_x + direction[0], one_y + direction[1]):
+                if board[one_x][one_y] != ' ':
+                    if board[x][y].color == 'White' and board[one_x][one_y].color == 'Black':
+                        gmoves.append((one_x + direction[0], one_y + direction[1]))
+                        capture.append((one_x + direction[0], one_y + direction[1]))
+                    elif board[x][y].color == 'Black' and board[one_x][one_y].color == 'White':
+                        gmoves.append((one_x + direction[0], one_y + direction[1]))
+                        capture.append((one_x + direction[0], one_y + direction[1]))
+        if len(capture) > 1:
+            return (capture, capture)
+        else:
+            return (gmoves, capture)
 
 class Serf:
     def __init__(self, name, x = 0, y = 0, c = ''):
         self.color = c
         self.position = (x, y)
         self.name = name
+
     def __str__(self):
         if self.color is 'Black':
             return '$'
         elif self.color is 'White':
             return 'S'
+
     def possible_moves(self):
         x = self.position[0]
         y = self.position[1]
         bmoves = [(x+1, y-1), (x+1, y+1)]
         wmoves = [(x-1, y-1), (x-1, y+1)]
         smoves = []
+        capture = []
         if self.color is 'Black':
             for arr in bmoves:
                 if isinstance(board[x][y], Serf) and check_move(arr[0], arr[1]):
                     smoves.append(arr)
+                direction = (arr[0] - x, arr[1] - y)
+                if isinstance(board[x][y], Serf) and check_move(arr[0] + direction[0], arr[1] + direction[1]):
+                    if board[arr[0]][arr[1]] != ' ':
+                        if board[arr[0]][arr[1]].color == 'White':
+                            smoves.append((arr[0] + direction[0], arr[1] + direction[1]))
+                            capture.append((arr[0] + direction[0], arr[1] + direction[1]))
         elif self.color is 'White':
             for arr in wmoves:
                 if isinstance(board[x][y], Serf) and check_move(arr[0], arr[1]):
                     smoves.append(arr)
-        return smoves
+                direction = (arr[0] -x, arr[1] - y)
+                if isinstance(board[x][y], Serf) and check_move(arr[0] + direction[0], arr[1] + direction[1]):
+                    if board[arr[0]][arr[1]] != ' ':
+                        if board[arr[0]][arr[1]].color == 'Black':
+                            smoves.append((arr[0] + direction[0], arr[1] + direction[1]))
+                            capture.append((arr[0] + direction[0], arr[1] + direction[1]))
+        if len(capture) > 1:
+            return (capture, capture)
+        else:
+            return (smoves, capture)
 
 def check_move(x, y):
     return 0 <= x <= (len(board[0])-1) and 0 <= y <= (len(board)-1) and board[x][y] is ' '
@@ -116,17 +170,38 @@ def select_move(list):
         break
     return list[input_move-1]
 
-def make_move(x, y, selection):
-        piece = board[x][y]
-        board[x][y] = ' '
-        board[selection[0]][selection[1]] = piece
-        piece.position = selection
+def internal_move(x, y, selection, move_list, capture):
+    global turn
+    if len(capture) > 0  and selection == capture[0]:
+        board[(x + (selection[0]))//2][(y + (selection[1]))//2] = ' '
+    board[selection[0]][selection[1]] = board[x][y]
+    board[x][y] = ' '
+    board[selection[0]][selection[1]].position = selection
+    if turn == 'White':
+        turn = 'Black'
+    else:
+        turn = 'White'
+    # loop_board()
+    # checks for next players turn; if no moves they lose; if capture is available then indicate the boolean globally and remove all non captures in possible moves
 
 def capture():
     pass
 
 def check_winner():
     pass
+
+def loop_board():
+    existing_move = False
+    existing_capture = False
+    for r in range(len(board)):
+        for c in range(len(board[0])):
+            if board[r][c] != ' ':
+                if board[r][c].color == turn:
+                    if len(board[r][c].possible_moves()[0]) > 0:
+                        existing_move = True
+                        if len(board[r][c].possible_moves()[1] > 0):
+                            existing_capture = True
+    return (existing_move, existing_capture)
 
 def print_board():
     print('\n A | B | C | D | E | F | G | H | I | J ')
@@ -141,13 +216,11 @@ def print_board():
         sys.stdout.write(str(board[9][y]) + ' | ')
     print(str(board[9][9]) + ' | 1  ' + '\n')
 
-
 def initialize_pieces(board, gui, piece_imgs):
     serf_count = 0
     guard_count = 0
-
     for x in range(3):
-        for y in range(len(board[0])-1):
+        for y in range(len(board[0])):
             if board[x][y] is '$':
                 name = "bs" + str(serf_count)
                 board[x][y] = Serf(name, x, y, 'Black')
@@ -226,7 +299,7 @@ class GameBoard(tk.Frame):
         if not self.selected_piece:
             if not check_valid_piece(r,c):
                 return
-            self.poss_moves = board[r][c].possible_moves()
+            self.poss_moves, self.capture = board[r][c].possible_moves()
             self.orig_name = board[r][c].name
             self.orig_coord = (r,c)
             self.dots = []
@@ -246,9 +319,10 @@ class GameBoard(tk.Frame):
                 for dot in self.dots:
                     self.canvas.delete(dot)
                 self.place_piece(self.orig_name, r, c)
-                self.select_piece = False
-                make_move(self.orig_coord[0], self.orig_coord[1], (r,c))
-        # self.canvas.delete("wg3")
+                self.selected_piece = False
+                if (r,c) in self.capture:
+                    self.canvas.delete("{}".format(board[(r + self.orig_coord[0])//2][(c + self.orig_coord[1])//2].name))
+                internal_move(self.orig_coord[0], self.orig_coord[1], (r,c), self.poss_moves, self.capture)
 
     def refresh(self, event):
         '''Redraw the board, possibly in response to window being resized'''
@@ -273,6 +347,7 @@ class GameBoard(tk.Frame):
 
 if __name__ == "__main__":
     root = tk.Tk()
+    #root.state('zoomed')
     gui = GameBoard(root)
     piece_imgs = {
         'ws' : tk.PhotoImage(file="wp.png"),
@@ -286,7 +361,6 @@ if __name__ == "__main__":
     gui.pack(side="top", fill="both", expand="true", padx=4, pady=4)
     initialize_pieces(board, gui, piece_imgs)
     root.mainloop()
-
 """
     while not winner:
         print_board()
