@@ -13,6 +13,8 @@ board = [['g', ' ', 'g', ' ', 'B', ' ', 'g', ' ', 'g', ' '],
          [' ', 'G', ' ', 'G', ' ', 'W', ' ', 'G', ' ', 'G']]
 turn = 'White'
 winner = False
+existing_capture = False
+existing_move = False
 black_pieces = []
 white_pieces = []
 
@@ -46,7 +48,7 @@ class King:
                     elif board[x][y].color == 'Black' and board[arr[0]][arr[1]].color == 'White':
                         kmoves.append((arr[0] + direction[0], arr[1] + direction[1]))
                         capture.append((arr[0] + direction[0], arr[1] + direction[1]))
-        if len(capture) > 1:
+        if len(capture) > 0:
             return (capture, capture)
         else:
             return (kmoves, capture)
@@ -81,7 +83,6 @@ class Guard:
                 if check_move(two_x, two_y):
                     gmoves.append(two_moves[i])
             direction = (one_x - x, one_y - y)
-            print(direction)
             if isinstance(board[x][y], Guard) and check_move(one_x + direction[0], one_y + direction[1]):
                 if board[one_x][one_y] != ' ':
                     if board[x][y].color == 'White' and board[one_x][one_y].color == 'Black':
@@ -90,7 +91,7 @@ class Guard:
                     elif board[x][y].color == 'Black' and board[one_x][one_y].color == 'White':
                         gmoves.append((one_x + direction[0], one_y + direction[1]))
                         capture.append((one_x + direction[0], one_y + direction[1]))
-        if len(capture) > 1:
+        if len(capture) > 0:
             return (capture, capture)
         else:
             return (gmoves, capture)
@@ -134,7 +135,7 @@ class Serf:
                         if board[arr[0]][arr[1]].color == 'Black':
                             smoves.append((arr[0] + direction[0], arr[1] + direction[1]))
                             capture.append((arr[0] + direction[0], arr[1] + direction[1]))
-        if len(capture) > 1:
+        if existing_capture:
             return (capture, capture)
         else:
             return (smoves, capture)
@@ -149,8 +150,11 @@ def check_valid_piece(x, y):
     elif board[x][y].color != turn:
         print("You can't move the opponent's piece!")
         return False
-    elif len(board[x][y].possible_moves()) == 0:
-        print("That piece has no valid moves this turn")
+    elif len(board[x][y].possible_moves()[0]) == 0:
+        if existing_capture:
+            print("Captures are mandatory")
+        else:
+            print("That piece has no valid moves this turn")
         return False
     return True
 
@@ -170,27 +174,40 @@ def select_move(list):
         break
     return list[input_move-1]
 
-def internal_move(x, y, selection, move_list, capture):
+def internal_move(x, y, selection, move_list):
     global turn
-    if len(capture) > 0  and selection == capture[0]:
-        board[(x + (selection[0]))//2][(y + (selection[1]))//2] = ' '
-    board[selection[0]][selection[1]] = board[x][y]
-    board[x][y] = ' '
-    board[selection[0]][selection[1]].position = selection
-    if turn == 'White':
-        turn = 'Black'
+    global existing_capture
+    chain_capture = False
+    if existing_capture:
+        capture(x, y, selection, move_list)
     else:
-        turn = 'White'
-    # loop_board()
+        board[selection[0]][selection[1]] = board[x][y]
+        board[x][y] = ' '
+        board[selection[0]][selection[1]].position = selection
+    if not chain_capture:
+        if turn == 'White':
+            turn = 'Black'
+        else:
+            turn = 'White'
+    existing_move, existing_capture = loop_board()
     # checks for next players turn; if no moves they lose; if capture is available then indicate the boolean globally and remove all non captures in possible moves
 
-def capture():
-    pass
+def capture(x, y, selection, move_list):
+    global existing_capture
+    while existing_capture:
+        board[(x + (selection[0]))//2][(y + (selection[1]))//2] = ' '
+        board[selection[0]][selection[1]] = board[x][y]
+        board[x][y] = ' '
+        board[selection[0]][selection[1]].position = selection
+        if len(board[selection[0]][selection[1]].possible_moves()[1]) == 0:
+            existing_capture = False
 
 def check_winner():
     pass
 
 def loop_board():
+    global existing_capture
+    global existing_move
     existing_move = False
     existing_capture = False
     for r in range(len(board)):
@@ -199,7 +216,7 @@ def loop_board():
                 if board[r][c].color == turn:
                     if len(board[r][c].possible_moves()[0]) > 0:
                         existing_move = True
-                        if len(board[r][c].possible_moves()[1] > 0):
+                        if len(board[r][c].possible_moves()[1]) > 0:
                             existing_capture = True
     return (existing_move, existing_capture)
 
@@ -322,7 +339,12 @@ class GameBoard(tk.Frame):
                 self.selected_piece = False
                 if (r,c) in self.capture:
                     self.canvas.delete("{}".format(board[(r + self.orig_coord[0])//2][(c + self.orig_coord[1])//2].name))
-                internal_move(self.orig_coord[0], self.orig_coord[1], (r,c), self.poss_moves, self.capture)
+                internal_move(self.orig_coord[0], self.orig_coord[1], (r,c), self.poss_moves)
+            else:
+                for dot in self.dots:
+                    self.canvas.delete(dot)
+                self.selected_piece = False
+                return
 
     def refresh(self, event):
         '''Redraw the board, possibly in response to window being resized'''
