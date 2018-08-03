@@ -40,15 +40,38 @@ class King:
             if isinstance(board[x][y], King) and check_move(arr[0], arr[1]):
                 kmoves.append(arr)
             direction = (arr[0] - x, arr[1] - y)
-            if isinstance(board[x][y], King) and check_move(arr[0] + direction[0], arr[1] + direction[1]):
-                if board[arr[0]][arr[1]] != ' ':
-                    if board[x][y].color == 'White' and board[arr[0]][arr[1]].color == 'Black':
-                        kmoves.append((arr[0] + direction[0], arr[1] + direction[1]))
-                        capture.append((arr[0] + direction[0], arr[1] + direction[1]))
-                    elif board[x][y].color == 'Black' and board[arr[0]][arr[1]].color == 'White':
-                        kmoves.append((arr[0] + direction[0], arr[1] + direction[1]))
-                        capture.append((arr[0] + direction[0], arr[1] + direction[1]))
-        if len(capture) > 0:
+            if isinstance(board[x][y], King):
+                if check_move(arr[0] + direction[0], arr[1] + direction[1]):
+                    if board[arr[0]][arr[1]] != ' ':
+                        if board[x][y].color == 'White' and board[arr[0]][arr[1]].color == 'Black':
+                            kmoves.append((arr[0] + direction[0], arr[1] + direction[1]))
+                            capture.append((arr[0] + direction[0], arr[1] + direction[1]))
+                        elif board[x][y].color == 'Black' and board[arr[0]][arr[1]].color == 'White':
+                            kmoves.append((arr[0] + direction[0], arr[1] + direction[1]))
+                            capture.append((arr[0] + direction[0], arr[1] + direction[1]))
+                elif 0 <= arr[0] <= (len(board[0])-1) and 0 <= arr[1] <= (len(board)-1):
+                    if board[arr[0]][arr[1]] != ' ':
+                        if board[x][y].color == 'White' and board[arr[0]][arr[1]].color == 'Black':
+                            if (x == 2 and y == 2):
+                                kmoves.append((2,2))
+                                capture.append((2,2))
+                            if (x == 2 and y == 6):
+                                kmoves.append((2,6))
+                                capture.append((2,6))
+                        elif board[x][y].color == 'Black' and board[arr[0]][arr[1]].color == 'White':
+                            if (x == 7 and y == 3):
+                                kmoves.append((7,3))
+                                capture.append((7,3))
+                            if (x == 7 and y == 7):
+                                kmoves.append((7,7))
+                                capture.append((7,7))
+        if board[x][y].color == 'White':
+            if (x == 3 and y == 3) or (x == 3 and y == 5):
+                kmoves.append((4,4))
+        if board[x][y].color == 'Black':
+            if (x == 6 and y == 4) or (x == 6 and y == 6):
+                kmoves.append((5,5))
+        if existing_capture:
             return (capture, capture)
         else:
             return (kmoves, capture)
@@ -91,7 +114,7 @@ class Guard:
                     elif board[x][y].color == 'Black' and board[one_x][one_y].color == 'White':
                         gmoves.append((one_x + direction[0], one_y + direction[1]))
                         capture.append((one_x + direction[0], one_y + direction[1]))
-        if len(capture) > 0:
+        if existing_capture:
             return (capture, capture)
         else:
             return (gmoves, capture)
@@ -127,6 +150,17 @@ class Serf:
                         if board[arr[0]][arr[1]].color == 'White':
                             smoves.append((arr[0] + direction[0], arr[1] + direction[1]))
                             capture.append((arr[0] + direction[0], arr[1] + direction[1]))
+            if x == 9:
+                if board[2][0] == ' ':
+                    smoves.append((2,0))
+                if board[2][2] == ' ':
+                    smoves.append((2,2))
+                if board[2][4] == ' ':
+                    smoves.append((2,4))
+                if board[2][6] == ' ':
+                    smoves.append((2,6))
+                if board[2][8] == ' ':
+                    smoves.append((2,8))
         elif self.color is 'White':
             for arr in wmoves:
                 if isinstance(board[x][y], Serf) and check_move(arr[0], arr[1]):
@@ -137,13 +171,27 @@ class Serf:
                         if board[arr[0]][arr[1]].color == 'Black':
                             smoves.append((arr[0] + direction[0], arr[1] + direction[1]))
                             capture.append((arr[0] + direction[0], arr[1] + direction[1]))
+            if x == 0:
+                if board[7][1] == ' ':
+                    smoves.append((7,1))
+                if board[7][3] == ' ':
+                    smoves.append((7,3))
+                if board[7][5] == ' ':
+                    smoves.append((7,5))
+                if board[7][7] == ' ':
+                    smoves.append((7,7))
+                if board[7][9] == ' ':
+                    smoves.append((7,9))
         if existing_capture:
             return (capture, capture)
         else:
             return (smoves, capture)
 
 def check_move(x, y):
-    return 0 <= x <= (len(board[0])-1) and 0 <= y <= (len(board)-1) and board[x][y] is ' '
+    if (x == 5 and y == 5) or (x == 4 and y == 4):
+        return False
+    else:
+        return 0 <= x <= (len(board[0])-1) and 0 <= y <= (len(board)-1) and board[x][y] is ' '
 
 def check_valid_piece(x, y):
     if board[x][y] == ' ':
@@ -195,12 +243,21 @@ def internal_move(x, y, selection, move_list):
             turn = 'Black'
         else:
             turn = 'White'
+
     existing_move, existing_capture = loop_board()
     # checks for next players turn; if no moves they lose; if capture is available then indicate the boolean globally and remove all non captures in possible moves
 
 
 def check_winner():
-    pass
+    global existing_move
+    if isinstance(board[4][4], King) or isinstance(board[5][5], King) or not existing_move:
+        if turn == 'White':
+            print('Black wins!')
+        else:
+            print('White wins!')
+        return True
+    else:
+        return False
 
 def loop_board():
     global existing_capture
@@ -269,7 +326,7 @@ def initialize_pieces(board, gui, piece_imgs):
 import tkinter as tk
 
 class GameBoard(tk.Frame):
-    def __init__(self, parent, rows=10, columns=10, size=32, color1="brown", color2="white"):
+    def __init__(self, parent, rows=10, columns=10, size=32, color1="gray30", color2="white"):
         self.rows = rows
         self.columns = columns
         self.size = size
@@ -316,7 +373,10 @@ class GameBoard(tk.Frame):
                 y0 = y * self.size + offset
                 x1 = x0 + self.size - 2*offset
                 y1 = y0 + self.size - 2*offset
-                self.dots.append(self.canvas.create_oval(x0,y0,x1,y1,fill='orange',outline=''))
+                if turn == 'White':
+                    self.dots.append(self.canvas.create_oval(x0,y0,x1,y1,fill='orange',outline=''))
+                else:
+                    self.dots.append(self.canvas.create_oval(x0,y0,x1,y1,fill='red',outline=''))
             self.selected_piece = True
         else:
             print(r,c)
@@ -337,6 +397,8 @@ class GameBoard(tk.Frame):
                 return
             if existing_capture:
                 self.make_move
+            if check_winner():
+                root.quit()
 
     def refresh(self, event):
         '''Redraw the board, possibly in response to window being resized'''
@@ -354,6 +416,10 @@ class GameBoard(tk.Frame):
                 y2 = y1 + self.size
                 self.canvas.create_rectangle(x1, y1, x2, y2, outline="black", fill=color, tags="square")
                 color = self.color1 if color == self.color2 else self.color2
+        self.canvas.create_rectangle(5*self.size, 5*self.size, 5*self.size+self.size, 5*self.size+self.size, outline="black", fill="dark green", tags="square")
+        self.canvas.create_rectangle(4*self.size, 4*self.size, 4*self.size+self.size, 4*self.size+self.size, outline="black", fill="dark green", tags="square")
+        self.canvas.create_rectangle(5*self.size, 4*self.size, 5*self.size+self.size, 4*self.size+self.size, outline="green2", fill="white", tags="square")
+        self.canvas.create_rectangle(4*self.size, 5*self.size, 4*self.size+self.size, 5*self.size+self.size, outline="green2", fill="white", tags="square")
         for name in self.pieces:
             self.place_piece(name, self.pieces[name][0], self.pieces[name][1])
         self.canvas.tag_raise("piece")
