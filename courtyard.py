@@ -102,11 +102,13 @@ class Serf:
         self.position = (x, y)
         self.name = name
 
+    """
     def __str__(self):
         if self.color is 'Black':
             return '$'
         elif self.color is 'White':
             return 'S'
+    """
 
     def possible_moves(self):
         x = self.position[0]
@@ -179,12 +181,16 @@ def internal_move(x, y, selection, move_list):
     global existing_capture
     chain_capture = False
     if existing_capture:
-        capture(x, y, selection, move_list)
+        board[(x + (selection[0]))//2][(y + (selection[1]))//2] = ' '
+        board[selection[0]][selection[1]] = board[x][y]
+        board[x][y] = ' '
+        board[selection[0]][selection[1]].position = selection
+        existing_move, existing_capture = loop_board()
     else:
         board[selection[0]][selection[1]] = board[x][y]
         board[x][y] = ' '
         board[selection[0]][selection[1]].position = selection
-    if not chain_capture:
+    if not existing_capture:
         if turn == 'White':
             turn = 'Black'
         else:
@@ -192,15 +198,6 @@ def internal_move(x, y, selection, move_list):
     existing_move, existing_capture = loop_board()
     # checks for next players turn; if no moves they lose; if capture is available then indicate the boolean globally and remove all non captures in possible moves
 
-def capture(x, y, selection, move_list):
-    global existing_capture
-    while existing_capture:
-        board[(x + (selection[0]))//2][(y + (selection[1]))//2] = ' '
-        board[selection[0]][selection[1]] = board[x][y]
-        board[x][y] = ' '
-        board[selection[0]][selection[1]].position = selection
-        if len(board[selection[0]][selection[1]].possible_moves()[1]) == 0:
-            existing_capture = False
 
 def check_winner():
     pass
@@ -268,13 +265,6 @@ def initialize_pieces(board, gui, piece_imgs):
             elif board[x][y] is 'W':
                 board[x][y] = King('wk', x, y, 'White')
                 gui.add_piece('wk', piece_imgs['wk'], x, y)
-
-"""
-move = select_move(board[7][1].possible_moves())
-make_move(7, 1, move)
-print_board()
-#unicode = {White: {King:'♔', Guard: '♘', Serf: '♙'}, Black: {King: '♚', Guard: '♞', Serf: '♟'}}
-"""
 
 import tkinter as tk
 
@@ -345,6 +335,8 @@ class GameBoard(tk.Frame):
                     self.canvas.delete(dot)
                 self.selected_piece = False
                 return
+            if existing_capture:
+                self.make_move
 
     def refresh(self, event):
         '''Redraw the board, possibly in response to window being resized'''
@@ -383,15 +375,3 @@ if __name__ == "__main__":
     gui.pack(side="top", fill="both", expand="true", padx=4, pady=4)
     initialize_pieces(board, gui, piece_imgs)
     root.mainloop()
-"""
-    while not winner:
-        print_board()
-        initialize_pieces(board, gui. piece_imgs)
-        piece = select_piece()
-        move = select_move(piece.possible_moves())
-        make_move(piece.position[0], piece.position[1], move)
-        if turn == 'White':
-            turn = 'Black'
-        else:
-            turn = 'White'
-"""
