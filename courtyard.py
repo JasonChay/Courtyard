@@ -1,5 +1,5 @@
-
 import sys
+from random import randint
 
 board = [['g', ' ', 'g', ' ', 'B', ' ', 'g', ' ', 'g', ' '],
          [' ', '$', ' ', '$', ' ', '$', ' ', '$', ' ', '$'],
@@ -13,10 +13,12 @@ board = [['g', ' ', 'g', ' ', 'B', ' ', 'g', ' ', 'g', ' '],
          [' ', 'G', ' ', 'G', ' ', 'W', ' ', 'G', ' ', 'G']]
 turn = 'White'
 winner = False
+existing_move = True
 existing_capture = False
-existing_move = False
+chain_capture = False
 black_pieces = []
 white_pieces = []
+random_bot = False
 
 class King:
     def __init__(self, name, x = 0, y = 0, c = ''):
@@ -227,26 +229,24 @@ def select_move(list):
 def internal_move(x, y, selection, move_list):
     global turn
     global existing_capture
-    chain_capture = False
+    global chain_capture
     if existing_capture:
+        capturer = board[x][y].name
         board[(x + (selection[0]))//2][(y + (selection[1]))//2] = ' '
         board[selection[0]][selection[1]] = board[x][y]
         board[x][y] = ' '
         board[selection[0]][selection[1]].position = selection
-        existing_move, existing_capture = loop_board()
     else:
+        capturer = ''
         board[selection[0]][selection[1]] = board[x][y]
         board[x][y] = ' '
         board[selection[0]][selection[1]].position = selection
-    if not existing_capture:
+    if not chain_capture:
         if turn == 'White':
             turn = 'Black'
         else:
             turn = 'White'
-
-    existing_move, existing_capture = loop_board()
-    # checks for next players turn; if no moves they lose; if capture is available then indicate the boolean globally and remove all non captures in possible moves
-
+    existing_move, existing_capture, chain_capture = loop_board(capturer)
 
 def check_winner():
     global existing_move
@@ -259,9 +259,10 @@ def check_winner():
     else:
         return False
 
-def loop_board():
+def loop_board(capturer):
     global existing_capture
     global existing_move
+    global chain_capture
     existing_move = False
     existing_capture = False
     for r in range(len(board)):
@@ -272,7 +273,9 @@ def loop_board():
                         existing_move = True
                         if len(board[r][c].possible_moves()[1]) > 0:
                             existing_capture = True
-    return (existing_move, existing_capture)
+                            if capturer == board[r][c].name:
+                                chain_capture = True
+    return (existing_move, existing_capture, chain_capture)
 
 def print_board():
     print('\n A | B | C | D | E | F | G | H | I | J ')
@@ -322,6 +325,21 @@ def initialize_pieces(board, gui, piece_imgs):
             elif board[x][y] is 'W':
                 board[x][y] = King('wk', x, y, 'White')
                 gui.add_piece('wk', piece_imgs['wk'], x, y)
+
+def minimiax(nodes, depth, maximizing_player):
+    heuristic
+    if depth == 0: #or nodes == 1:
+        return heuristic
+    elif maximizing_player:
+        heuristic = -9999 #A very small negative number to serve as an initialization
+        for node in nodes: # number of iterations
+            heuristic = max(heuristic, minimax(node, depth-1, False))
+        return heuristic
+    else: #minimizing_player
+        heuristic = 9999
+        for node in nodes:
+            heuristic = max(heuristic, minimax(node, depth-1, True))
+        return heuristic
 
 import tkinter as tk
 
@@ -395,7 +413,7 @@ class GameBoard(tk.Frame):
                     self.canvas.delete(dot)
                 self.selected_piece = False
                 return
-            if existing_capture:
+            if chain_capture:
                 self.make_move
             if check_winner():
                 root.quit()
