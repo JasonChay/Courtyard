@@ -327,7 +327,6 @@ def initialize_pieces(board, gui, piece_imgs):
                 gui.add_piece('wk', piece_imgs['wk'], x, y)
 
 def minimiax(nodes, depth, maximizing_player):
-    heuristic
     if depth == 0: #or nodes == 1:
         return heuristic
     elif maximizing_player:
@@ -338,8 +337,30 @@ def minimiax(nodes, depth, maximizing_player):
     else: #minimizing_player
         heuristic = 9999
         for node in nodes:
-            heuristic = max(heuristic, minimax(node, depth-1, True))
+            heuristic = min(heuristic, minimax(node, depth-1, True))
         return heuristic
+
+#assigns heuristic values to specific moves
+def move_values():
+    if board[4][4] != ' ':
+        if board[4][4].color == turn:
+            return 9999
+    if board[5][5] != ' ':
+        if board[5][5].color == turn:
+            return -9999
+    # return lesser values for capture positions (and # of captures), capture of
+    # kings vs guards vs serfs, and proximity to courtyard? 
+
+# function will use minimax and find the best move (max or min heuristic of possible moves)
+def find_best_move():
+    best_move = 0
+    for r in range(len(board)):
+        for c in range(len(board[0])):
+            if board[r][c] != ' ':
+                if board[r][c].color == turn:
+                    for move in board[r][c].possible_moves()[0]:
+                        #possible_move = minimax
+                        pass
 
 import tkinter as tk
 
