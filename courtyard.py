@@ -16,6 +16,7 @@ winner = False
 existing_move = True
 existing_capture = False
 chain_capture = False
+capturer = 0
 black_pieces = []
 white_pieces = []
 random_bot = False
@@ -226,16 +227,21 @@ def select_move(list):
         break
     return list[input_move-1]
 
-def internal_move(x, y, selection, move_list):
+def internal_move(x, y, selection):
     global turn
     global existing_capture
     global chain_capture
+    global capturer
     if existing_capture:
-        capturer = board[x][y].name
         board[(x + (selection[0]))//2][(y + (selection[1]))//2] = ' '
         board[selection[0]][selection[1]] = board[x][y]
         board[x][y] = ' '
         board[selection[0]][selection[1]].position = selection
+        capturer = board[selection[0]][selection[1]]
+        if len(board[selection[0]][selection[1]].possible_moves()[1]) > 0:
+            chain_capture = True
+        else:
+            chain_capture = False
     else:
         capturer = ''
         board[selection[0]][selection[1]] = board[x][y]
@@ -246,7 +252,7 @@ def internal_move(x, y, selection, move_list):
             turn = 'Black'
         else:
             turn = 'White'
-    existing_move, existing_capture, chain_capture = loop_board(capturer)
+    existing_move, existing_capture = loop_board()
 
 def check_winner():
     global existing_move
@@ -259,10 +265,9 @@ def check_winner():
     else:
         return False
 
-def loop_board(capturer):
+def loop_board():
     global existing_capture
     global existing_move
-    global chain_capture
     existing_move = False
     existing_capture = False
     for r in range(len(board)):
@@ -273,9 +278,7 @@ def loop_board(capturer):
                         existing_move = True
                         if len(board[r][c].possible_moves()[1]) > 0:
                             existing_capture = True
-                            if capturer == board[r][c].name:
-                                chain_capture = True
-    return (existing_move, existing_capture, chain_capture)
+    return (existing_move, existing_capture)
 
 def print_board():
     print('\n A | B | C | D | E | F | G | H | I | J ')
@@ -326,7 +329,7 @@ def initialize_pieces(board, gui, piece_imgs):
                 board[x][y] = King('wk', x, y, 'White')
                 gui.add_piece('wk', piece_imgs['wk'], x, y)
 
-def minimiax(nodes, depth, maximizing_player):
+def minimax(nodes, depth, maximizing_player):
     if depth == 0: #or nodes == 1:
         return heuristic
     elif maximizing_player:
@@ -341,15 +344,33 @@ def minimiax(nodes, depth, maximizing_player):
         return heuristic
 
 #assigns heuristic values to specific moves
-def move_values():
+def evaluate():
     if board[4][4] != ' ':
-        if board[4][4].color == turn:
+        if board[4][4].color == 'White':
             return 9999
     if board[5][5] != ' ':
-        if board[5][5].color == turn:
+        if board[5][5].color == 'Black':
             return -9999
-    # return lesser values for capture positions (and # of captures), capture of
-    # kings vs guards vs serfs, and proximity to courtyard? 
+    for r in range(len(board)):
+        for c in range(len(board[0])):
+            if isinstance(board[r][c], Serf):
+                if board[r][c].color == 'White':
+                    return len(board[r][c].possible_move()[0])
+                else:
+                    return -1*len(board[r][c].possible_move()[0])
+            if isinstance(board[r][c], Guard):
+                if board[r][c].color == 'White':
+                    return 5*len(board[r][c].possible_move()[0])
+                else:
+                    return -5*len(board[r][c].possible_move()[0])
+            if isinstance(board[r][c], King):
+                if board[r][c].color == 'White':
+                    return 40*len(board[r][c].possible_move()[0])
+                else:
+                    return -40*len(board[r][c].possible_move()[0])
+
+    # TO INCLUDE LATER:
+    # # of pieces left and proximity to courtyard?
 
 # function will use minimax and find the best move (max or min heuristic of possible moves)
 def find_best_move():
@@ -359,8 +380,10 @@ def find_best_move():
             if board[r][c] != ' ':
                 if board[r][c].color == turn:
                     for move in board[r][c].possible_moves()[0]:
-                        #possible_move = minimax
-                        pass
+                        copy_board = board[:]
+                        internal_move(r, c, move)
+                        #current_val = minimax()
+                        board = copy_board
 
 import tkinter as tk
 
@@ -428,7 +451,7 @@ class GameBoard(tk.Frame):
                 self.selected_piece = False
                 if (r,c) in self.capture:
                     self.canvas.delete("{}".format(board[(r + self.orig_coord[0])//2][(c + self.orig_coord[1])//2].name))
-                internal_move(self.orig_coord[0], self.orig_coord[1], (r,c), self.poss_moves)
+                internal_move(self.orig_coord[0], self.orig_coord[1], (r,c))
             else:
                 for dot in self.dots:
                     self.canvas.delete(dot)
