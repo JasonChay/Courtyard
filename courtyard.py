@@ -237,11 +237,13 @@ def internal_move(x, y, selection):
         board[selection[0]][selection[1]] = board[x][y]
         board[x][y] = ' '
         board[selection[0]][selection[1]].position = selection
-        capturer = board[selection[0]][selection[1]]
+        if capturer == '':
+            capturer = board[selection[0]][selection[1]]
         if len(board[selection[0]][selection[1]].possible_moves()[1]) > 0:
             chain_capture = True
         else:
             chain_capture = False
+            capturer = ''
     else:
         capturer = ''
         board[selection[0]][selection[1]] = board[x][y]
@@ -329,21 +331,35 @@ def initialize_pieces(board, gui, piece_imgs):
                 board[x][y] = King('wk', x, y, 'White')
                 gui.add_piece('wk', piece_imgs['wk'], x, y)
 
-def minimax(nodes, depth, maximizing_player):
+def minimax(board, depth, maximizing_player):
     if depth == 0: #or nodes == 1:
-        return heuristic
+        return best_move
     elif maximizing_player:
-        heuristic = -9999 #A very small negative number to serve as an initialization
-        for node in nodes: # number of iterations
-            heuristic = max(heuristic, minimax(node, depth-1, False))
-        return heuristic
+        best_move = -9999 #A very small negative number to serve as an initialization
+        for r in range(len(board)): # number of iterations
+            for c in range(len(board[0])):
+                if board[r][c] != ' ':
+                    if board[r][c].color == turn:
+                        for move in board[r][c].possible_moves()[0]:
+                            copy_board = board[:]
+                            internal_move(r, c, move)
+                            best_move = max(best_move, minimax(depth-1, False))
+                            board = copy_board
+        return best_move
     else: #minimizing_player
-        heuristic = 9999
-        for node in nodes:
-            heuristic = min(heuristic, minimax(node, depth-1, True))
-        return heuristic
+        best_move = 9999
+        for r in range(len(board)): # number of iterations
+            for c in range(len(board[0])):
+                if board[r][c] != ' ':
+                    if board[r][c].color == turn:
+                        for move in board[r][c].possible_moves()[0]:
+                            copy_board = board[:]
+                            internal_move(r, c, move)
+                            best_move = min(best_move, minimax(depth-1, False))
+                            board = copy_board
+        return best_move
 
-#assigns heuristic values to specific moves
+#assigns heuristic values to specific moves; how to incorporate this in minimax?
 def evaluate():
     if board[4][4] != ' ':
         if board[4][4].color == 'White':
@@ -372,18 +388,6 @@ def evaluate():
     # TO INCLUDE LATER:
     # # of pieces left and proximity to courtyard?
 
-# function will use minimax and find the best move (max or min heuristic of possible moves)
-def find_best_move():
-    best_move = 0
-    for r in range(len(board)):
-        for c in range(len(board[0])):
-            if board[r][c] != ' ':
-                if board[r][c].color == turn:
-                    for move in board[r][c].possible_moves()[0]:
-                        copy_board = board[:]
-                        internal_move(r, c, move)
-                        #current_val = minimax()
-                        board = copy_board
 
 import tkinter as tk
 
@@ -425,7 +429,10 @@ class GameBoard(tk.Frame):
         if not self.selected_piece:
             if not check_valid_piece(r,c):
                 return
-            self.poss_moves, self.capture = board[r][c].possible_moves()
+            if capturer:
+                self.poss_moves, self.capture = capturer.possible_moves()
+            else:
+                self.poss_moves, self.capture = board[r][c].possible_moves()
             self.orig_name = board[r][c].name
             self.orig_coord = (r,c)
             self.dots = []
