@@ -19,7 +19,7 @@ chain_capture = False
 capturer = 0
 black_pieces = []
 white_pieces = []
-random_bot = False
+rand_bot = False
 
 class King:
     def __init__(self, name, x = 0, y = 0, c = ''):
@@ -232,6 +232,7 @@ def internal_move(x, y, selection):
     global existing_capture
     global chain_capture
     global capturer
+    global rand_bot
     if existing_capture:
         board[(x + (selection[0]))//2][(y + (selection[1]))//2] = ' '
         board[selection[0]][selection[1]] = board[x][y]
@@ -252,8 +253,10 @@ def internal_move(x, y, selection):
     if not chain_capture:
         if turn == 'White':
             turn = 'Black'
+            rand_bot = True
         else:
             turn = 'White'
+            rand_bot = False
     existing_move, existing_capture = loop_board()
 
 def check_winner():
@@ -331,36 +334,52 @@ def initialize_pieces(board, gui, piece_imgs):
                 board[x][y] = King('wk', x, y, 'White')
                 gui.add_piece('wk', piece_imgs['wk'], x, y)
 
+def random_bot(board):
+    pieces = []
+    for r in range(len(board)):
+        for c in range(len(board[0])):
+            if board[r][c] != ' ':
+                if board[r][c].color == turn:
+                    if len(board[r][c].possible_moves()[0]) > 0:
+                        pieces.append((r, c))
+    piece = randint(0, len(pieces)-1)
+    x = pieces[piece][0]
+    y = pieces[piece][1]
+    move_list = board[x][y].possible_moves()[0]
+    random_selection = randint(0, len(move_list)-1)
+    random_move = move_list[random_selection]
+    return ((x, y), random_move)
+
 def minimax(board, depth, maximizing_player):
     if depth == 0: #or nodes == 1:
-        return best_move
+        return best
     elif maximizing_player:
-        best_move = -9999 #A very small negative number to serve as an initialization
-        for r in range(len(board)): # number of iterations
+        best = -9999
+        for r in range(len(board)):
             for c in range(len(board[0])):
                 if board[r][c] != ' ':
                     if board[r][c].color == turn:
                         for move in board[r][c].possible_moves()[0]:
                             copy_board = board[:]
                             internal_move(r, c, move)
-                            best_move = max(best_move, minimax(depth-1, False))
+                            best = max(best, minimax(board, depth-1, False))
                             board = copy_board
-        return best_move
+        return best
     else: #minimizing_player
-        best_move = 9999
-        for r in range(len(board)): # number of iterations
+        best = 9999
+        for r in range(len(board)):
             for c in range(len(board[0])):
                 if board[r][c] != ' ':
                     if board[r][c].color == turn:
                         for move in board[r][c].possible_moves()[0]:
                             copy_board = board[:]
                             internal_move(r, c, move)
-                            best_move = min(best_move, minimax(depth-1, False))
+                            best = min(best, minimax(board, depth-1, False))
                             board = copy_board
-        return best_move
+        return best
 
 #assigns heuristic values to specific moves; how to incorporate this in minimax?
-def evaluate():
+def evaluate(board):
     if board[4][4] != ' ':
         if board[4][4].color == 'White':
             return 9999
@@ -386,8 +405,36 @@ def evaluate():
                     return -40*len(board[r][c].possible_move()[0])
 
     # TO INCLUDE LATER:
-    # # of pieces left and proximity to courtyard?
+    # proximity to courtyard?
 
+def find_best_move(board):
+    if turn == 'White':
+        best = -9999
+        for r in range(len(board)):
+            for c in range(len(board[0])):
+                if board[r][c] != ' ':
+                    if board[r][c].color == turn:
+                        for move in board[r][c].possible_moves()[0]:
+                            copy_board = board[:]
+                            internal_move(r, c, move)
+                            value = minimax(board, 0, True)
+                            board = copy_board
+                            if value > best_move:
+                                best_move = move
+
+    else:
+        best = 9999
+        for r in range(len(board)):
+            for c in range(len(board[0])):
+                if board[r][c] != ' ':
+                    if board[r][c].color == turn:
+                        for move in board[r][c].possible_moves()[0]:
+                            copy_board = board[:]
+                            internal_move(r, c, move)
+                            value = minimax(board, 0, False)
+                            board = copy_board
+                            if value < best_move:
+                                best_move = move
 
 import tkinter as tk
 
@@ -425,47 +472,65 @@ class GameBoard(tk.Frame):
         self.canvas.coords(name, x0, y0)
 
     def make_move(self, event):
-        c, r = event.x//self.size, event.y//self.size
-        if not self.selected_piece:
-            if not check_valid_piece(r,c):
-                return
-            if capturer:
-                self.poss_moves, self.capture = capturer.possible_moves()
-            else:
-                self.poss_moves, self.capture = board[r][c].possible_moves()
-            self.orig_name = board[r][c].name
-            self.orig_coord = (r,c)
-            self.dots = []
-            offset = 0.3 * self.size
-            for y,x in self.poss_moves:
-                x0 = x * self.size + offset
-                y0 = y * self.size + offset
-                x1 = x0 + self.size - 2*offset
-                y1 = y0 + self.size - 2*offset
-                if turn == 'White':
-                    self.dots.append(self.canvas.create_oval(x0,y0,x1,y1,fill='orange',outline=''))
-                else:
-                    self.dots.append(self.canvas.create_oval(x0,y0,x1,y1,fill='red',outline=''))
-            self.selected_piece = True
-        else:
-            print(r,c)
-            print(self.poss_moves)
-            if (r,c) in self.poss_moves:
-                print("entered")
-                for dot in self.dots:
-                    self.canvas.delete(dot)
+        if rand_bot:
+            bot = random_bot(board)
+            x = bot[0][0]
+            y = bot[0][1]
+            selection = bot[1]
+            r = selection[0]
+            c = selection[1]
+            self.orig_name = board[x][y].name
+            self.orig_coord = (x,y)
+            if existing_capture:
+                print(10000, (r + self.orig_coord[0])//2, (c + self.orig_coord[1])//2)
+                self.canvas.delete("{}".format(board[(r + self.orig_coord[0])//2][(c + self.orig_coord[1])//2].name))
+                internal_move(x, y, selection)
                 self.place_piece(self.orig_name, r, c)
-                self.selected_piece = False
-                if (r,c) in self.capture:
-                    self.canvas.delete("{}".format(board[(r + self.orig_coord[0])//2][(c + self.orig_coord[1])//2].name))
-                internal_move(self.orig_coord[0], self.orig_coord[1], (r,c))
             else:
-                for dot in self.dots:
-                    self.canvas.delete(dot)
-                self.selected_piece = False
-                return
-            if chain_capture:
-                self.make_move
+                internal_move(x, y, selection)
+                self.place_piece(self.orig_name, r, c)
+        else:
+            c, r = event.x//self.size, event.y//self.size
+            if not self.selected_piece:
+                if not check_valid_piece(r,c):
+                    return
+                if capturer:
+                    self.poss_moves, self.capture = capturer.possible_moves()
+                else:
+                    self.poss_moves, self.capture = board[r][c].possible_moves()
+                self.orig_name = board[r][c].name
+                self.orig_coord = (r,c)
+                self.dots = []
+                offset = 0.3 * self.size
+                for y,x in self.poss_moves:
+                    x0 = x * self.size + offset
+                    y0 = y * self.size + offset
+                    x1 = x0 + self.size - 2*offset
+                    y1 = y0 + self.size - 2*offset
+                    if turn == 'White':
+                        self.dots.append(self.canvas.create_oval(x0,y0,x1,y1,fill='orange',outline=''))
+                    else:
+                        self.dots.append(self.canvas.create_oval(x0,y0,x1,y1,fill='red',outline=''))
+                self.selected_piece = True
+            else:
+                print(r,c)
+                print(self.poss_moves)
+                if (r,c) in self.poss_moves:
+                    print("entered")
+                    for dot in self.dots:
+                        self.canvas.delete(dot)
+                    self.place_piece(self.orig_name, r, c)
+                    self.selected_piece = False
+                    if (r,c) in self.capture:
+                        self.canvas.delete("{}".format(board[(r + self.orig_coord[0])//2][(c + self.orig_coord[1])//2].name))
+                    internal_move(self.orig_coord[0], self.orig_coord[1], (r,c))
+                else:
+                    for dot in self.dots:
+                        self.canvas.delete(dot)
+                    self.selected_piece = False
+                    return
+                if chain_capture:
+                    self.make_move
             if check_winner():
                 root.quit()
 
