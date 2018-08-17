@@ -1,5 +1,7 @@
 import sys
 from random import randint
+from random import random
+from copy import deepcopy
 
 board = [['g', ' ', 'g', ' ', 'B', ' ', 'g', ' ', 'g', ' '],
          [' ', '$', ' ', '$', ' ', '$', ' ', '$', ' ', '$'],
@@ -20,6 +22,14 @@ capturer = 0
 black_pieces = []
 white_pieces = []
 rand_bot = False
+minimax_bot = False
+bot = 2 # 1 for player v player, 2 for player v bot, 3 for bot v player, 4 for bot v bot
+bot_version = [2, 2] # 1 for random_bot, 2 for minimax
+if bot == 3 or bot == 4:
+    if bot_version[0] == 1:
+        rand_bot = True
+    elif bot_version[0] == 2:
+        minimax_bot = True
 
 class King:
     def __init__(self, name, x = 0, y = 0, c = ''):
@@ -227,12 +237,9 @@ def select_move(list):
         break
     return list[input_move-1]
 
-def internal_move(x, y, selection):
-    global turn
-    global existing_capture
-    global chain_capture
-    global capturer
-    global rand_bot
+
+def internal_move(board, x, y, selection):
+    global existing_capture, chain_capture, capturer, turn
     if existing_capture:
         board[(x + (selection[0]))//2][(y + (selection[1]))//2] = ' '
         board[selection[0]][selection[1]] = board[x][y]
@@ -250,13 +257,47 @@ def internal_move(x, y, selection):
         board[selection[0]][selection[1]] = board[x][y]
         board[x][y] = ' '
         board[selection[0]][selection[1]].position = selection
+
+
+def change_turn():
+    global turn, chain_capture, rand_bot, minimax_bot
     if not chain_capture:
         if turn == 'White':
             turn = 'Black'
-            rand_bot = True
+            if bot == 1 or bot == 3:
+                rand_bot = False
+            elif bot == 2:
+                if bot_version[0] == 1:
+                    rand_bot = True
+                elif bot_version[0] == 2:
+                    minimax_bot = True
+            elif bot == 4:
+                if bot_version[0] == 1:
+                    rand_bot = True
+                elif bot_version[1] == 1:
+                    rand_bot = True
+                elif bot_version[1] == 2:
+                    minimax_bot = True
+                elif bot_version[0] == 2:
+                    minimax_bot = True
         else:
             turn = 'White'
-            rand_bot = False
+            if bot == 1 or bot == 2:
+                rand_bot = False
+            elif bot == 3:
+                if bot_version[0] == 1:
+                    rand_bot = True
+                elif bot_version[0] == 2:
+                    minimax_bot = True
+            elif bot == 4:
+                if bot_version[0] == 1:
+                    rand_bot = True
+                elif bot_version[1] == 1:
+                    rand_bot = True
+                elif bot_version[1] == 2:
+                    minimax_bot = True
+                elif bot_version[0] == 2:
+                    minimax_bot = True
     existing_move, existing_capture = loop_board()
 
 def check_winner():
@@ -334,49 +375,74 @@ def initialize_pieces(board, gui, piece_imgs):
                 board[x][y] = King('wk', x, y, 'White')
                 gui.add_piece('wk', piece_imgs['wk'], x, y)
 
-def random_bot(board):
-    pieces = []
+
+def all_moves(board, color):
+    moves = []
     for r in range(len(board)):
         for c in range(len(board[0])):
             if board[r][c] != ' ':
-                if board[r][c].color == turn:
+                if board[r][c].color == color:
                     if len(board[r][c].possible_moves()[0]) > 0:
-                        pieces.append((r, c))
-    piece = randint(0, len(pieces)-1)
-    x = pieces[piece][0]
-    y = pieces[piece][1]
-    move_list = board[x][y].possible_moves()[0]
-    random_selection = randint(0, len(move_list)-1)
-    random_move = move_list[random_selection]
-    return ((x, y), random_move)
+                        for move in board[r][c].possible_moves()[0]:
+                            moves.append((r, c, move))
+    return moves
+
+def random_bot(board):
+    moves = all_moves(board, turn)
+    random_selection = randint(0, len(moves)-1)
+    random_move = moves[random_selection]
+    x = random_move[0]
+    y = random_move[1]
+    selection = random_move[2]
+    return(x, y, selection)
 
 def minimax(board, depth, maximizing_player):
-    if depth == 0: #or nodes == 1:
-        return best
-    elif maximizing_player:
+    global existing_capture, chain_capture, capturer
+    temp_exist_capt = existing_capture
+    temp_capturer = capturer
+    temp_chain = chain_capture
+    if depth == 0:
+        return (evaluate(board), None)
+    if maximizing_player:
+        moves = all_moves(board, 'White')
+    else:
+        moves = all_moves(board, 'Black')
+    if maximizing_player:
         best = -9999
-        for r in range(len(board)):
-            for c in range(len(board[0])):
-                if board[r][c] != ' ':
-                    if board[r][c].color == turn:
-                        for move in board[r][c].possible_moves()[0]:
-                            copy_board = board[:]
-                            internal_move(r, c, move)
-                            best = max(best, minimax(board, depth-1, False))
-                            board = copy_board
-        return best
+        best_move = None
+        for move in moves:
+            r = move[0]
+            c = move[1]
+            selection = move[2]
+            print(selection)
+            copy_board = deepcopy(board)
+            internal_move(copy_board, r, c, selection)
+            val, next_move = minimax(board, depth-1, False)
+            if val > best:
+                best = val
+                best_move = move
+        existing_capture = temp_exist_capt
+        chain_capture =  temp_chain
+        capturer = temp_capturer
+        return (best, best_move)
     else: #minimizing_player
         best = 9999
-        for r in range(len(board)):
-            for c in range(len(board[0])):
-                if board[r][c] != ' ':
-                    if board[r][c].color == turn:
-                        for move in board[r][c].possible_moves()[0]:
-                            copy_board = board[:]
-                            internal_move(r, c, move)
-                            best = min(best, minimax(board, depth-1, False))
-                            board = copy_board
-        return best
+        best_move = None
+        for move in moves:
+            r = move[0]
+            c = move[1]
+            selection = move[2]
+            print(selection)
+            copy_board = deepcopy(board)
+            internal_move(copy_board, r, c, selection)
+            val, next_move = minimax(board, depth-1, True)
+            if val < best:
+                best = val
+                best_move = move
+        existing_capture = temp_exist_capt
+        chain_capture =  temp_chain
+        capturer = temp_capturer
+        return (best, best_move)
 
 #assigns heuristic values to specific moves; how to incorporate this in minimax?
 def evaluate(board):
@@ -386,6 +452,8 @@ def evaluate(board):
     if board[5][5] != ' ':
         if board[5][5].color == 'Black':
             return -9999
+    return len(all_moves(board, 'White')) - len(all_moves(board, 'Black')) + random() - .5
+    """
     for r in range(len(board)):
         for c in range(len(board[0])):
             if isinstance(board[r][c], Serf):
@@ -403,38 +471,10 @@ def evaluate(board):
                     return 40*len(board[r][c].possible_move()[0])
                 else:
                     return -40*len(board[r][c].possible_move()[0])
+    """
 
     # TO INCLUDE LATER:
     # proximity to courtyard?
-
-def find_best_move(board):
-    if turn == 'White':
-        best = -9999
-        for r in range(len(board)):
-            for c in range(len(board[0])):
-                if board[r][c] != ' ':
-                    if board[r][c].color == turn:
-                        for move in board[r][c].possible_moves()[0]:
-                            copy_board = board[:]
-                            internal_move(r, c, move)
-                            value = minimax(board, 0, True)
-                            board = copy_board
-                            if value > best_move:
-                                best_move = move
-
-    else:
-        best = 9999
-        for r in range(len(board)):
-            for c in range(len(board[0])):
-                if board[r][c] != ' ':
-                    if board[r][c].color == turn:
-                        for move in board[r][c].possible_moves()[0]:
-                            copy_board = board[:]
-                            internal_move(r, c, move)
-                            value = minimax(board, 0, False)
-                            board = copy_board
-                            if value < best_move:
-                                best_move = move
 
 import tkinter as tk
 
@@ -472,23 +512,55 @@ class GameBoard(tk.Frame):
         self.canvas.coords(name, x0, y0)
 
     def make_move(self, event):
+        global rand_bot, minimax_bot, turn
         if rand_bot:
             bot = random_bot(board)
-            x = bot[0][0]
-            y = bot[0][1]
-            selection = bot[1]
+            x = bot[0]
+            y = bot[1]
+            selection = bot[2]
             r = selection[0]
             c = selection[1]
             self.orig_name = board[x][y].name
             self.orig_coord = (x,y)
             if existing_capture:
-                print(10000, (r + self.orig_coord[0])//2, (c + self.orig_coord[1])//2)
+                print((r + self.orig_coord[0])//2, (c + self.orig_coord[1])//2)
                 self.canvas.delete("{}".format(board[(r + self.orig_coord[0])//2][(c + self.orig_coord[1])//2].name))
-                internal_move(x, y, selection)
+                internal_move(board, x, y, selection)
                 self.place_piece(self.orig_name, r, c)
+                if chain_capture:
+                    self.make_move
+                change_turn()
             else:
-                internal_move(x, y, selection)
+                internal_move(board, x, y, selection)
+                change_turn()
                 self.place_piece(self.orig_name, r, c)
+            rand_bot = False
+        elif minimax_bot:
+            depth = 3
+            if turn == 'White':
+                bot = minimax(board, depth, True)
+            else:
+                bot = minimax(board, depth, False)
+            x = bot[1][0]
+            y = bot[1][1]
+            selection = bot[1][2]
+            r = selection[0]
+            c = selection[1]
+            self.orig_name = board[x][y].name
+            self.orig_coord = (x,y)
+            if existing_capture:
+                print((r + self.orig_coord[0])//2, (c + self.orig_coord[1])//2)
+                self.canvas.delete("{}".format(board[(r + self.orig_coord[0])//2][(c + self.orig_coord[1])//2].name))
+                internal_move(board, x, y, selection)
+                self.place_piece(self.orig_name, r, c)
+                if chain_capture:
+                    self.make_move
+                change_turn()
+            else:
+                internal_move(board, x, y, selection)
+                change_turn()
+                self.place_piece(self.orig_name, r, c)
+            minimax_bot = False
         else:
             c, r = event.x//self.size, event.y//self.size
             if not self.selected_piece:
@@ -523,7 +595,8 @@ class GameBoard(tk.Frame):
                     self.selected_piece = False
                     if (r,c) in self.capture:
                         self.canvas.delete("{}".format(board[(r + self.orig_coord[0])//2][(c + self.orig_coord[1])//2].name))
-                    internal_move(self.orig_coord[0], self.orig_coord[1], (r,c))
+                    internal_move(board, self.orig_coord[0], self.orig_coord[1], (r,c))
+                    change_turn()
                 else:
                     for dot in self.dots:
                         self.canvas.delete(dot)
@@ -531,8 +604,8 @@ class GameBoard(tk.Frame):
                     return
                 if chain_capture:
                     self.make_move
-            if check_winner():
-                root.quit()
+        if check_winner():
+            root.quit()
 
     def refresh(self, event):
         '''Redraw the board, possibly in response to window being resized'''
